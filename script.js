@@ -92,23 +92,23 @@ function cameraClamp() {
 }
 
 function moveForward() {
-    currentCamera.position.x -= currentCamera.speed * Math.sin(sgl.MyGLMath.degToRad(currentCamera.orientation.y));
-    currentCamera.position.z -= currentCamera.speed * Math.cos(sgl.MyGLMath.degToRad(currentCamera.orientation.y));
+    currentCamera.position.x -= currentCamera.speed * Math.sin(sgl.SGLMath.degToRad(currentCamera.orientation.y));
+    currentCamera.position.z -= currentCamera.speed * Math.cos(sgl.SGLMath.degToRad(currentCamera.orientation.y));
 }
 
 function moveBackward() {
-    currentCamera.position.x += currentCamera.speed * Math.sin(sgl.MyGLMath.degToRad(currentCamera.orientation.y));
-    currentCamera.position.z += currentCamera.speed * Math.cos(sgl.MyGLMath.degToRad(currentCamera.orientation.y));
+    currentCamera.position.x += currentCamera.speed * Math.sin(sgl.SGLMath.degToRad(currentCamera.orientation.y));
+    currentCamera.position.z += currentCamera.speed * Math.cos(sgl.SGLMath.degToRad(currentCamera.orientation.y));
 }
 
 function moveLeft() {
-    currentCamera.position.x -= currentCamera.speed * Math.sin(sgl.MyGLMath.degToRad(currentCamera.orientation.y + 90));
-    currentCamera.position.z += currentCamera.speed * Math.cos(sgl.MyGLMath.degToRad(currentCamera.orientation.y - 90));
+    currentCamera.position.x -= currentCamera.speed * Math.sin(sgl.SGLMath.degToRad(currentCamera.orientation.y + 90));
+    currentCamera.position.z += currentCamera.speed * Math.cos(sgl.SGLMath.degToRad(currentCamera.orientation.y - 90));
 }
 
 function moveRight() {
-    currentCamera.position.x += currentCamera.speed * Math.sin(sgl.MyGLMath.degToRad(currentCamera.orientation.y + 90));
-    currentCamera.position.z -= currentCamera.speed * Math.cos(sgl.MyGLMath.degToRad(currentCamera.orientation.y - 90));
+    currentCamera.position.x += currentCamera.speed * Math.sin(sgl.SGLMath.degToRad(currentCamera.orientation.y + 90));
+    currentCamera.position.z -= currentCamera.speed * Math.cos(sgl.SGLMath.degToRad(currentCamera.orientation.y - 90));
 }
 
 function moveUp() {

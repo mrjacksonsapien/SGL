@@ -5,6 +5,9 @@
  * of the GPU. Warning: This library is made for learning purpose of the 3D graphic pipeline and not for heavy intensive
  * scenes rendering. The CanvasRenderingContext2D API is used for the final render.
  *
+ * Important note: You can use different data structures but most of the time, functions assume that you pass as an
+ * argument a Float32Array and will directly modify the elements inside it.
+ *
  * @author mrjacksonsapien
  */
 
@@ -12,6 +15,11 @@
  * Math functions.
  */
 export class SGLMath {
+    /**
+     * Converts degrees to radians.
+     * @param degrees Unit in degrees.
+     * @returns {number} Unit in radians.
+     */
     static degToRad(degrees) {
         return degrees * (Math.PI / 180);
     }
@@ -20,15 +28,36 @@ export class SGLMath {
     }
 }
 
+/**
+ * Takes care of rendering. Uses the Matrix class for vertices transformation.
+ */
 export class Renderer {
+    /**
+     * The size of one triangle inside the triangle data array.
+     * @type {number}
+     */
     static SIZEOF_TRIANGLE_DATA = 3;
+    /**
+     * The size of one vertex inside the vertex data array.
+     * @type {number}
+     */
     static SIZEOF_VERTEX_DATA = 4;
 
+    /**
+     * Creates an instance to render the scene on the canvas using CanvasRenderingContext2D API.
+     * @param canvas HTML canvas.
+     * @param scene SGL Scene object.
+     */
     constructor(canvas, scene) {
         this.canvas = canvas;
         this.scene = scene;
     }
 
+    /**
+     * Converts the Scene object attached to the Renderer into 2 Float32Arrays stored in one JavaScript array.
+     * @returns {Float32Array[]} Contains triangles data and vertices data. The triangles array contains the indices
+     * to their corresponding vertices in the vertices data array.
+     */
     convertSceneToFlatArrays() {
         let vertices = [];
         const triangles = [];
@@ -51,16 +80,16 @@ export class Renderer {
         // Remove duplicates (many triangles sharing the same vertex)
         vertices = [...new Set(vertices)];
 
-        const trianglesVerticesIndices = new Float32Array(triangles.length * Renderer.SIZEOF_TRIANGLE_DATA);
+        const trianglesData = new Float32Array(triangles.length * Renderer.SIZEOF_TRIANGLE_DATA);
 
         // Map vertices to triangles
         for (let i = 0; i < triangles.length; i++) {
             const triangle = triangles[i];
             const triangleIndex = i * Renderer.SIZEOF_TRIANGLE_DATA;
 
-            trianglesVerticesIndices[triangleIndex] = vertices.indexOf(triangle.vertex1) * Renderer.SIZEOF_VERTEX_DATA;
-            trianglesVerticesIndices[triangleIndex + 1] = vertices.indexOf(triangle.vertex2) * Renderer.SIZEOF_VERTEX_DATA;
-            trianglesVerticesIndices[triangleIndex + 2] = vertices.indexOf(triangle.vertex3) * Renderer.SIZEOF_VERTEX_DATA;
+            trianglesData[triangleIndex] = vertices.indexOf(triangle.vertex1) * Renderer.SIZEOF_VERTEX_DATA;
+            trianglesData[triangleIndex + 1] = vertices.indexOf(triangle.vertex2) * Renderer.SIZEOF_VERTEX_DATA;
+            trianglesData[triangleIndex + 2] = vertices.indexOf(triangle.vertex3) * Renderer.SIZEOF_VERTEX_DATA;
         }
 
         let verticesData = new Float32Array(vertices.length * Renderer.SIZEOF_VERTEX_DATA);
@@ -76,16 +105,31 @@ export class Renderer {
             verticesData[verticesDataIndex + 3] = 1;
         }
 
-        return [trianglesVerticesIndices, verticesData];
+        return [trianglesData, verticesData];
     }
 
+    /**
+     * Apply a matrix to a flat array of many vertices (Converts each vertex individually).
+     * @param matrix The matrix obtained from a method in the Matrix class.
+     * @param verticesData The vertices data float array.
+     */
     applyMatrixToVertices(matrix, verticesData) {
         for (let i = 0; i < verticesData.length / Renderer.SIZEOF_VERTEX_DATA; i++) {
             Matrix.multiplyMatrixWithVertex(matrix,  i * Renderer.SIZEOF_VERTEX_DATA, verticesData);
         }
     }
 
-    clip(trianglesVerticesIndices, verticesData) {
+    /**
+     * Clips all the triangles based on 3 situations and returns a new JavaScript array containing new data for the
+     * triangles and vertices (same structure as return of convertSceneToFlatArrays()).
+     * A: Completly outside. Discards the triangle.
+     * B: Competly inside. Keeps the triangle as-is.
+     * C: Some vertices are outside a plane. clip to the plane.
+     * @param trianglesData The triangles data.
+     * @param verticesData The vertices data.
+     * @returns {Float32Array[]} The new JavaScript array containing the triangles and vertices data.
+     */
+    clip(trianglesData, verticesData) {
         const newTriangles = [];
         const newVertices = [];
 
@@ -144,13 +188,13 @@ export class Renderer {
                     if (v3IsInside) insideVertices.push(v3);
                     else outsideVertices.push(v3);
 
-
+                    // TODO: Handle one or two vertices being outside
                 }
             }
 
-            const v1 = trianglesVerticesIndices[triangleIndex];
-            const v2 = trianglesVerticesIndices[triangleIndex + 1];
-            const v3 = trianglesVerticesIndices[triangleIndex + 2];
+            const v1 = trianglesData[triangleIndex];
+            const v2 = trianglesData[triangleIndex + 1];
+            const v3 = trianglesData[triangleIndex + 2];
 
             const v1Planes = planes(v1);
             const v2Planes = planes(v2);
@@ -177,13 +221,17 @@ export class Renderer {
             clipAgainstPlanes(v1, v2, v3, v1Planes, v2Planes, v3Planes);
         }
 
-        for (let i = 0; i < trianglesVerticesIndices.length / Renderer.SIZEOF_TRIANGLE_DATA; i++) {
+        for (let i = 0; i < trianglesData.length / Renderer.SIZEOF_TRIANGLE_DATA; i++) {
             clipTriangle(i * Renderer.SIZEOF_TRIANGLE_DATA);
         }
 
         return [new Float32Array(newTriangles), new Float32Array(newVertices)];
     }
 
+    /**
+     * Applies perspective division to clip-space vertices.
+     * @param verticesData Clip-space vertices.
+     */
     applyPerspectiveDivisionToClipVertices(verticesData) {
         for (let i = 0; i < verticesData.length / Renderer.SIZEOF_VERTEX_DATA; i++) {
             const vertexIndex = i * Renderer.SIZEOF_VERTEX_DATA;
@@ -194,6 +242,10 @@ export class Renderer {
         }
     }
 
+    /**
+     * Maps the NDC vertices to the canvas 2D coordinates.
+     * @param verticesData NDC vertices.
+     */
     mapNdcVerticesToScreenCoordinates(verticesData) {
         for (let i = 0; i < verticesData.length / Renderer.SIZEOF_VERTEX_DATA; i++) {
             const vertexIndex = i * Renderer.SIZEOF_VERTEX_DATA;
@@ -203,13 +255,19 @@ export class Renderer {
         }
     }
 
-    displayTrianglesWireframe(trianglesVerticesIndices, verticesData, ctx) {
-        for (let i = 0; i < trianglesVerticesIndices.length / Renderer.SIZEOF_TRIANGLE_DATA; i++) {
+    /**
+     * Display the triangle's wireframe.
+     * @param trianglesData Triangles data after clipping.
+     * @param verticesData Vertices data after 2D mapping.
+     */
+    displayTrianglesWireframe(trianglesData, verticesData) {
+        const ctx = this.canvas.getContext('2d');
+        for (let i = 0; i < trianglesData.length / Renderer.SIZEOF_TRIANGLE_DATA; i++) {
             const triangleIndex = i * Renderer.SIZEOF_TRIANGLE_DATA;
 
-            const vertex1Index = trianglesVerticesIndices[triangleIndex];
-            const vertex2Index = trianglesVerticesIndices[triangleIndex + 1];
-            const vertex3Index = trianglesVerticesIndices[triangleIndex + 2];
+            const vertex1Index = trianglesData[triangleIndex];
+            const vertex2Index = trianglesData[triangleIndex + 1];
+            const vertex3Index = trianglesData[triangleIndex + 2];
 
             ctx.beginPath();
             ctx.moveTo(verticesData[vertex1Index], verticesData[vertex1Index + 1]);
@@ -221,12 +279,16 @@ export class Renderer {
         }
     }
 
+    /**
+     * Goes through all the steps of the 3D rendering pipeline. The scene must have a current camera when this method is called.
+     * Since JavaScript is really easy to break, make sure that all your attributes are initialized and defined. If you use the classes
+     * correctly, it shouldn't be a problem but be careful.
+     */
     render() {
-        const ctx = this.canvas.getContext('2d');
         const camera = this.scene.currentCamera;
 
         let sceneData = this.convertSceneToFlatArrays();
-        let trianglesVerticesIndices = sceneData[0];
+        let trianglesData = sceneData[0];
         let verticesData = sceneData[1];
 
         /* Now in world space (coordinates relative to the world origin). The scene has been converted into
@@ -244,8 +306,8 @@ export class Renderer {
         because some triangles and vertices might have been discarded with some new ones added, which requires changing the size
         of the arrays. */
 
-        sceneData = this.clip(trianglesVerticesIndices, verticesData);
-        trianglesVerticesIndices = sceneData[0];
+        sceneData = this.clip(trianglesData, verticesData);
+        trianglesData = sceneData[0];
         verticesData = sceneData[1];
 
         this.applyPerspectiveDivisionToClipVertices(verticesData);
@@ -258,13 +320,23 @@ export class Renderer {
         /* Now in 2D screen space. The vertices are finally mapped to the 2D screen coordinates. In this space, we can finally
         see the final position of the vertices. */
 
-        this.displayTrianglesWireframe(trianglesVerticesIndices, verticesData, ctx);
+        this.displayTrianglesWireframe(trianglesData, verticesData);
 
-        console.log(verticesData.length / Renderer.SIZEOF_VERTEX_DATA, trianglesVerticesIndices.length / Renderer.SIZEOF_TRIANGLE_DATA);
+        console.log(verticesData.length / Renderer.SIZEOF_VERTEX_DATA, trianglesData.length / Renderer.SIZEOF_TRIANGLE_DATA);
     }
 }
 
+/**
+ * Holds all the hardcoded matrices for 3D transformation. Some conventional aspects are respected while others like
+ * matrix multiplications might change from one engine to another.
+ */
 export class Matrix {
+    /**
+     * Multiplies a 4x4 matrix (flat array) with a vertex.
+     * @param m The matrix (flat array).
+     * @param vertexIndex The index of the first component of the vertex (x) inside the verticesData.
+     * @param verticesData The vertices data (Float32Array).
+     */
     static multiplyMatrixWithVertex(m, vertexIndex, verticesData) {
         const x = verticesData[vertexIndex];
         const y = verticesData[vertexIndex + 1];
@@ -277,6 +349,12 @@ export class Matrix {
         verticesData[vertexIndex + 3] = x * m[3] + y * m[7] + z * m[11] + w * m[15];
     }
 
+    /**
+     * Multiplies two 4x4 matrices together.
+     * @param a First matrix (flat array).
+     * @param b Second matrix (flat array).
+     * @returns {Float32Array} Result 4x4 matrix.
+     */
     static multiply4x4Matrices(a, b) {
         const result = new Float32Array(16);
 
