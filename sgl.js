@@ -178,7 +178,7 @@ export class Renderer {
 
             function clipAgainstPlanes(v1Index, v2Index, v3Index, v1Planes, v2Planes, v3Planes) {
                 function getIntersection(p1Index, p2Index, planeIndex) {
-                    // The w component
+                    // The w coefficient is inverted because the matrices respect the OpenGL standard.
                     const planesConstant = [
                         [1, 0, 0, -1], // Left
                         [-1, 0, 0, -1], // Right
