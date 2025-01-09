@@ -125,6 +125,7 @@ export class Renderer {
      * A: Completely outside. Discards the triangle.
      * B: Completely inside. Keeps the triangle as-is.
      * C: Some vertices are outside a plane. clip to the plane.
+     * D: The triangle is inside but the vertices are outside
      * @param trianglesData The triangles data.
      * @param verticesData The vertices data.
      * @returns {Float32Array[]} The new JavaScript array containing the triangles and vertices data.
@@ -383,6 +384,7 @@ export class Renderer {
         because some triangles and vertices might have been discarded with some new ones added, which requires changing the size
         of the arrays. */
 
+        // TODO: Fix problem with vertices behind the camera
         sceneData = this.clip(trianglesData, verticesData);
         trianglesData = sceneData[0];
         verticesData = sceneData[1];
