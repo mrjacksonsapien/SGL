@@ -150,9 +150,11 @@ export class Renderer {
         }
 
         function createNewVertex(vertexData) {
-            const vertexIndex = newVertices.length;
-            newVertices.push(...vertexData);
-            return vertexIndex;
+            if (vertexData.length === Renderer.SIZEOF_VERTEX_DATA) {
+                const vertexIndex = newVertices.length;
+                newVertices.push(...vertexData);
+                return vertexIndex;
+            }
         }
 
         function clipTriangle(triangleIndex) {
@@ -234,13 +236,19 @@ export class Renderer {
                     if (v3IsInside) insideVertices.push(v3Index);
                     else outsideVertices.push(v3Index);
 
+                    // Warning: Make sure the size of the new data passed to createNewVertex() is equal to SIZEOF_VERTEX_DATA
                     if (outsideVertices.length === 1) {
-                        // TODO
+                        const p1 = getIntersection(outsideVertices[0], insideVertices[0], i);
+                        const p2 = getIntersection(outsideVertices[0], insideVertices[1], i);
+
+                        const p1Index = createNewVertex(p1);
+                        const p2Index = createNewVertex(p2);
+
+                        // TODO: Create two triangles
                     } else if (outsideVertices.length === 2) {
                         const p1 = getIntersection(insideVertices[0], outsideVertices[0], i);
                         const p2 = getIntersection(insideVertices[0], outsideVertices[1], i);
 
-                        // Warning: Make sure the size of the new data is equal to SIZEOF_VERTEX_DATA
                         newTriangles.push(
                             addExistingVertex(insideVertices[0]),
                             createNewVertex(p1),
