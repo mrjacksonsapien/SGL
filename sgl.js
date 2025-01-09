@@ -122,8 +122,8 @@ export class Renderer {
     /**
      * Clips all the triangles based on 3 situations and returns a new JavaScript array containing new data for the
      * triangles and vertices (same structure as return of convertSceneToFlatArrays()).
-     * A: Completly outside. Discards the triangle.
-     * B: Competly inside. Keeps the triangle as-is.
+     * A: Completely outside. Discards the triangle.
+     * B: Completely inside. Keeps the triangle as-is.
      * C: Some vertices are outside a plane. clip to the plane.
      * @param trianglesData The triangles data.
      * @param verticesData The vertices data.
@@ -170,6 +170,7 @@ export class Renderer {
                 return vertexPlanes.every(flag => flag);
             }
 
+
             function clipAgainstPlanes(v1, v2, v3, v1Planes, v2Planes, v3Planes) {
                 for (let i = 0; i < 6; i++) {
                     const v1IsInside = v1Planes[i];
@@ -188,7 +189,11 @@ export class Renderer {
                     if (v3IsInside) insideVertices.push(v3);
                     else outsideVertices.push(v3);
 
-                    // TODO: Handle one or two vertices being outside
+                    if (outsideVertices.length === 2) {
+                        // TODO: Two vertices outside
+                    } else {
+                        // TODO: One vertex outside
+                    }
                 }
             }
 
@@ -372,17 +377,29 @@ export class Matrix {
         return result;
     }
 
-    static createTranslationMatrix(camera) {
+    /**
+     * Creates a translation matrix with x, y, z position components.
+     * @param x
+     * @param y
+     * @param z
+     * @returns {Float32Array}
+     */
+    static createTranslationMatrix(x, y, z) {
         const translationMatrix = new Float32Array(16);
         translationMatrix.set([
             1, 0, 0, 0,
             0, 1, 0, 0,
             0, 0, 1, 0,
-            camera.position.x, camera.position.y, camera.position.z, 1
+            x, y, z, 1
         ]);
         return translationMatrix;
     }
 
+    /**
+     * Creates a pitch matrix (x rotation).
+     * @param pitchDegrees Degrees for x.
+     * @returns {Float32Array}
+     */
     static createPitchMatrix(pitchDegrees) {
         const pitch = SGLMath.degToRad(pitchDegrees);
         const pitchMatrix = new Float32Array(16);
@@ -395,6 +412,11 @@ export class Matrix {
         return pitchMatrix;
     }
 
+    /**
+     * Create a yaw matrix (y).
+     * @param yawDegrees Degrees for y.
+     * @returns {Float32Array}
+     */
     static createYawMatrix(yawDegrees) {
         const yaw = SGLMath.degToRad(yawDegrees);
         const yawMatrix = new Float32Array(16);
@@ -407,6 +429,11 @@ export class Matrix {
         return yawMatrix;
     }
 
+    /**
+     * Creates a roll matrix (z).
+     * @param rollDegrees Degrees for z.
+     * @returns {Float32Array}
+     */
     static createRollMatrix(rollDegrees) {
         const roll = SGLMath.degToRad(rollDegrees);
         const rollMatrix = new Float32Array(16);
@@ -419,23 +446,40 @@ export class Matrix {
         return rollMatrix;
     }
 
-    static createEulerMatrix(camera) {
+    /**
+     * Creates an euleur matrix respecting the video game camera rotation standard.
+     * @param x In degrees.
+     * @param y In degrees.
+     * @param z In degrees.
+     * @returns {Float32Array}
+     */
+    static createEulerMatrix(x, y, z) {
         return Matrix.multiply4x4Matrices(
             Matrix.multiply4x4Matrices(
-                Matrix.createYawMatrix(camera.orientation.y),
-                Matrix.createPitchMatrix(camera.orientation.x)
+                Matrix.createYawMatrix(y),
+                Matrix.createPitchMatrix(x)
             ),
-            Matrix.createRollMatrix(camera.orientation.z)
+            Matrix.createRollMatrix(z)
         );
     }
 
+    /**
+     * Creates a view matrix for the camera.
+     * @param camera Camera object.
+     * @returns {Float32Array}
+     */
     static createViewMatrix(camera) {
         return Matrix.multiply4x4Matrices(
-            Matrix.createTranslationMatrix(camera),
-            Matrix.createEulerMatrix(camera)
+            Matrix.createTranslationMatrix(camera.position.x, camera.position.y, camera.position.z),
+            Matrix.createEulerMatrix(camera.orientation.x, camera.orientation.y, camera.orientation.z)
         )
     }
 
+    /**
+     * Creates a projection matrix (clip-space transformation).
+     * @param camera Camera object.
+     * @returns {Float32Array}
+     */
     static createProjectionMatrix(camera) {
         const aspectRatio = camera.canvas.clientWidth / camera.canvas.clientHeight;
         const projectionMatrix = new Float32Array(16);
@@ -449,32 +493,61 @@ export class Matrix {
     }
 }
 
-
+/**
+ * Contains all the meshes that will be rendered and the current camera that will be used to render the scene.
+ */
 export class Scene {
+    /**
+     * The camera that will be set as the current camera for rendering.
+     * @param camera Camera object.
+     */
     constructor(camera) {
         this.currentCamera = camera;
         this.meshes = [];
     }
 
-    add(instance) {
-        this.meshes.push(instance);
+    /**
+     * Add a mesh to the scene.
+     * @param mesh
+     */
+    add(mesh) {
+        this.meshes.push(mesh);
     }
 
-    remove(instance) {
-        let index = this.meshes.indexOf(instance);
+    /**
+     * Removes a mesh from the scene.
+     * @param mesh
+     */
+    remove(mesh) {
+        let index = this.meshes.indexOf(mesh);
         if (index !== -1) {
             this.meshes.splice(index, 1);
         }
     }
 
+    /**
+     * Logic to update the scene.
+     */
     act() {
-        this.meshes.forEach(instance => {
-            instance.act();
+        this.meshes.forEach(mesh => {
+            mesh.act();
         });
     }
 }
 
+/**
+ * Camera object used for rendering a scene.
+ */
 export class Camera {
+    /**
+     * Creates the camera.
+     * @param canvas HTML canvas used for rendering the scene.
+     * @param near The near clipping plane (cannot be equal or under 0).
+     * @param far Has to be larger than the near value.
+     * @param fov Field of view.
+     * @param position Position of the camera.
+     * @param orientation Orientation of the camera.
+     */
     constructor(canvas, near, far, fov, position, orientation) {
         this.canvas = canvas;
         this.near = near;
@@ -485,6 +558,9 @@ export class Camera {
     }
 }
 
+/**
+ * Mesh object containing all the data for rendering.
+ */
 export class Mesh {
     constructor(triangles) {
         this.triangles = triangles
@@ -492,6 +568,9 @@ export class Mesh {
     }
 }
 
+/**
+ * Contains the references to 3 Vertex and the data of the triangle.
+ */
 export class Triangle {
     constructor(vertex1, vertex2, vertex3) {
         this.vertex1 = vertex1;
@@ -500,12 +579,18 @@ export class Triangle {
     }
 }
 
+/**
+ * Contains the data of a vertex.
+ */
 export class Vertex {
     constructor(position) {
         this.position = position;
     }
 }
 
+/**
+ * Contains an x, y and z component.
+ */
 export class Vector3 {
     constructor(x, y, z) {
         this.x = x;
