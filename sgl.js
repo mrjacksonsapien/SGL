@@ -244,7 +244,18 @@ export class Renderer {
                         const p1Index = createNewVertex(p1);
                         const p2Index = createNewVertex(p2);
 
-                        // TODO: Create two triangles
+                        newTriangles.push(
+                            addExistingVertex(insideVertices[0]),
+                            p1Index,
+                            p2Index
+                        )
+
+                        newTriangles.push(
+                            addExistingVertex(insideVertices[0]),
+                            addExistingVertex(insideVertices[1]),
+                            p2Index
+                        )
+
                     } else if (outsideVertices.length === 2) {
                         const p1 = getIntersection(insideVertices[0], outsideVertices[0], i);
                         const p2 = getIntersection(insideVertices[0], outsideVertices[1], i);
@@ -265,6 +276,8 @@ export class Renderer {
             const v1Planes = planesRelation(v1Index);
             const v2Planes = planesRelation(v2Index);
             const v3Planes = planesRelation(v3Index);
+
+            // TODO: Handle when triangle is in front of camera but all vertices are outside
 
             // Keep triangle as-is if all vertices are inside
             if (isInside(v1Planes) && isInside(v2Planes) && isInside(v3Planes)) {
@@ -688,6 +701,24 @@ export class Cube extends Mesh {
             new Triangle(vertices[4], vertices[3], vertices[7]),
             new Triangle(vertices[1], vertices[5], vertices[6]),
             new Triangle(vertices[1], vertices[2], vertices[6])
+        ];
+    }
+}
+
+export class TriangleMesh extends Mesh {
+    constructor(position, size) {
+        super();
+        this.position = position;
+        this.size = size;
+
+        let vertices = [
+            new Vertex(new Vector3(this.position.x - this.size.x / 2, this.position.y + this.size.y / 2, this.position.z - this.size.z / 2)),
+            new Vertex(new Vector3(this.position.x + this.size.x / 2, this.position.y + this.size.y / 2, this.position.z - this.size.z / 2)),
+            new Vertex(new Vector3(this.position.x + this.size.x / 2, this.position.y - this.size.y / 2, this.position.z - this.size.z / 2)),
+        ];
+
+        this.triangles = [
+            new Triangle(vertices[0], vertices[1], vertices[2]),
         ];
     }
 }
