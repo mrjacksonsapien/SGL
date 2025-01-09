@@ -135,7 +135,7 @@ export class Renderer {
 
         const indexMap = {};
 
-        function addVertex(vertexIndex) {
+        function addExistingVertex(vertexIndex) {
             if (indexMap[vertexIndex] === undefined) {
                 indexMap[vertexIndex] = newVertices.length;
 
@@ -150,7 +150,7 @@ export class Renderer {
         }
 
         function clipTriangle(triangleIndex) {
-            function planes(vertexIndex) {
+            function planesRelation(vertexIndex) {
                 const x = verticesData[vertexIndex];
                 const y = verticesData[vertexIndex + 1];
                 const z = verticesData[vertexIndex + 2];
@@ -170,8 +170,11 @@ export class Renderer {
                 return vertexPlanes.every(flag => flag);
             }
 
-
             function clipAgainstPlanes(v1, v2, v3, v1Planes, v2Planes, v3Planes) {
+                function getIntersection(p1Index, p2Index, planeIndex) {
+                    // TODO
+                }
+
                 for (let i = 0; i < 6; i++) {
                     const v1IsInside = v1Planes[i];
                     const v2IsInside = v2Planes[i];
@@ -189,10 +192,10 @@ export class Renderer {
                     if (v3IsInside) insideVertices.push(v3);
                     else outsideVertices.push(v3);
 
-                    if (outsideVertices.length === 2) {
-                        // TODO: Two vertices outside
-                    } else {
-                        // TODO: One vertex outside
+                    if (outsideVertices.length === 1) {
+                        // TODO
+                    } else if (outsideVertices.length === 2) {
+                        // TODO
                     }
                 }
             }
@@ -201,25 +204,23 @@ export class Renderer {
             const v2 = trianglesData[triangleIndex + 1];
             const v3 = trianglesData[triangleIndex + 2];
 
-            const v1Planes = planes(v1);
-            const v2Planes = planes(v2);
-            const v3Planes = planes(v3);
+            const v1Planes = planesRelation(v1);
+            const v2Planes = planesRelation(v2);
+            const v3Planes = planesRelation(v3);
 
             // Keep triangle as-is if all vertices are inside
             if (isInside(v1Planes) && isInside(v2Planes) && isInside(v3Planes)) {
                 newTriangles.push(
-                    addVertex(v1),
-                    addVertex(v2),
-                    addVertex(v3)
+                    addExistingVertex(v1),
+                    addExistingVertex(v2),
+                    addExistingVertex(v3)
                 );
                 return;
             }
 
             // Discard triangle if all vertices are outside
-            for (let i = 0; i < 6; i++) {
-                if (!v1Planes[i] && !v2Planes[i] && !v3Planes[i]) {
-                    return;
-                }
+            if (!isInside(v1Planes) && !isInside(v2Planes) && !isInside(v3Planes)) {
+                return;
             }
 
             // Clip triangle if one or two vertices are outside
@@ -303,7 +304,7 @@ export class Renderer {
 
         this.applyMatrixToVertices(Matrix.createViewMatrix(camera), verticesData);
 
-        // Now in view space: Peform calculations for lighting, normal vectors, etc.
+        // Now in view space: Perform calculations for lighting, normal vectors, etc.
 
         this.applyMatrixToVertices(Matrix.createProjectionMatrix(camera), verticesData);
 
@@ -326,8 +327,6 @@ export class Renderer {
         see the final position of the vertices. */
 
         this.displayTrianglesWireframe(trianglesData, verticesData);
-
-        console.log(verticesData.length / Renderer.SIZEOF_VERTEX_DATA, trianglesData.length / Renderer.SIZEOF_TRIANGLE_DATA);
     }
 }
 
