@@ -133,11 +133,11 @@ export class Renderer {
         const newTriangles = [];
         const newVertices = [];
 
-        const indexMap = {};
+        const addedVertices = {};
 
         function addExistingVertex(vertexIndex) {
-            if (indexMap[vertexIndex] === undefined) {
-                indexMap[vertexIndex] = newVertices.length;
+            if (addedVertices[vertexIndex] === undefined) {
+                addedVertices[vertexIndex] = newVertices.length;
 
                 newVertices.push(
                     verticesData[vertexIndex],
@@ -146,7 +146,13 @@ export class Renderer {
                     verticesData[vertexIndex + 3]
                 );
             }
-            return indexMap[vertexIndex];
+            return addedVertices[vertexIndex];
+        }
+
+        function createNewVertex(vertexData) {
+            const vertexIndex = newVertices.length;
+            newVertices.push(...vertexData);
+            return vertexIndex;
         }
 
         function clipTriangle(triangleIndex) {
@@ -170,9 +176,45 @@ export class Renderer {
                 return vertexPlanes.every(flag => flag);
             }
 
-            function clipAgainstPlanes(v1, v2, v3, v1Planes, v2Planes, v3Planes) {
+            function clipAgainstPlanes(v1Index, v2Index, v3Index, v1Planes, v2Planes, v3Planes) {
                 function getIntersection(p1Index, p2Index, planeIndex) {
-                    // TODO
+                    // The w component
+                    const planesConstant = [
+                        [1, 0, 0, -1], // Left
+                        [-1, 0, 0, -1], // Right
+                        [0, 1, 0, -1], // Bottom
+                        [0, -1, 0, -1], // Top
+                        [0, 0, 1, -1], // Near
+                        [0, 0, -1, -1] // Far
+                    ]
+
+                    const plane = planesConstant[planeIndex];
+
+                    const x1 = verticesData[p1Index];
+                    const y1 = verticesData[p1Index + 1];
+                    const z1 = verticesData[p1Index + 2];
+                    const w1 = verticesData[p1Index + 3];
+
+                    const x2 = verticesData[p2Index];
+                    const y2 = verticesData[p2Index + 1];
+                    const z2 = verticesData[p2Index + 2];
+                    const w2 = verticesData[p2Index + 3];
+
+                    const numerator = -(plane[0] * x1 + plane[1] * y1 + plane[2] * z1 + plane[3] * w1);
+                    const denominator = (plane[0] * x2 + plane[1] * y2 + plane[2] * z2 + plane[3] * w2) + numerator;
+
+                    if (denominator === 0) {
+                        return null;
+                    }
+
+                    const t = numerator / denominator;
+
+                    const x = x1 + t * (x2 - x1);
+                    const y = y1 + t * (y2 - y1);
+                    const z = z1 + t * (z2 - z1);
+                    const w = w1 + t * (w2 - w1);
+
+                    return [x, y, z, w];
                 }
 
                 for (let i = 0; i < 6; i++) {
@@ -183,37 +225,45 @@ export class Renderer {
                     const insideVertices = [];
                     const outsideVertices = [];
 
-                    if (v1IsInside) insideVertices.push(v1);
-                    else outsideVertices.push(v1);
+                    if (v1IsInside) insideVertices.push(v1Index);
+                    else outsideVertices.push(v1Index);
 
-                    if (v2IsInside) insideVertices.push(v2);
-                    else outsideVertices.push(v2);
+                    if (v2IsInside) insideVertices.push(v2Index);
+                    else outsideVertices.push(v2Index);
 
-                    if (v3IsInside) insideVertices.push(v3);
-                    else outsideVertices.push(v3);
+                    if (v3IsInside) insideVertices.push(v3Index);
+                    else outsideVertices.push(v3Index);
 
                     if (outsideVertices.length === 1) {
                         // TODO
                     } else if (outsideVertices.length === 2) {
-                        // TODO
+                        const p1 = getIntersection(insideVertices[0], outsideVertices[0], i);
+                        const p2 = getIntersection(insideVertices[0], outsideVertices[1], i);
+
+                        // Warning: Make sure the size of the new data is equal to SIZEOF_VERTEX_DATA
+                        newTriangles.push(
+                            addExistingVertex(insideVertices[0]),
+                            createNewVertex(p1),
+                            createNewVertex(p2)
+                        )
                     }
                 }
             }
 
-            const v1 = trianglesData[triangleIndex];
-            const v2 = trianglesData[triangleIndex + 1];
-            const v3 = trianglesData[triangleIndex + 2];
+            const v1Index = trianglesData[triangleIndex];
+            const v2Index = trianglesData[triangleIndex + 1];
+            const v3Index = trianglesData[triangleIndex + 2];
 
-            const v1Planes = planesRelation(v1);
-            const v2Planes = planesRelation(v2);
-            const v3Planes = planesRelation(v3);
+            const v1Planes = planesRelation(v1Index);
+            const v2Planes = planesRelation(v2Index);
+            const v3Planes = planesRelation(v3Index);
 
             // Keep triangle as-is if all vertices are inside
             if (isInside(v1Planes) && isInside(v2Planes) && isInside(v3Planes)) {
                 newTriangles.push(
-                    addExistingVertex(v1),
-                    addExistingVertex(v2),
-                    addExistingVertex(v3)
+                    addExistingVertex(v1Index),
+                    addExistingVertex(v2Index),
+                    addExistingVertex(v3Index)
                 );
                 return;
             }
@@ -224,7 +274,7 @@ export class Renderer {
             }
 
             // Clip triangle if one or two vertices are outside
-            clipAgainstPlanes(v1, v2, v3, v1Planes, v2Planes, v3Planes);
+            clipAgainstPlanes(v1Index, v2Index, v3Index, v1Planes, v2Planes, v3Planes);
         }
 
         for (let i = 0; i < trianglesData.length / Renderer.SIZEOF_TRIANGLE_DATA; i++) {
