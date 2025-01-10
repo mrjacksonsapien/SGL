@@ -206,7 +206,7 @@ export class Renderer {
                     const numerator = -(plane[0] * x1 + plane[1] * y1 + plane[2] * z1 + plane[3] * w1);
                     const denominator = (plane[0] * x2 + plane[1] * y2 + plane[2] * z2 + plane[3] * w2) + numerator;
 
-                    if (denominator === 0) {
+                    if (Math.abs(denominator) < 1e-6) {
                         return null;
                     }
 
@@ -237,6 +237,7 @@ export class Renderer {
                     if (v3IsInside) insideVertices.push(v3Index);
                     else outsideVertices.push(v3Index);
 
+                    // TODO: Check new triangles created from previous plane iteration
                     // Warning: Make sure the size of the new data passed to createNewVertex() is equal to SIZEOF_VERTEX_DATA
                     if (outsideVertices.length === 1) {
                         const p1 = getIntersection(outsideVertices[0], insideVertices[0], i);
@@ -716,7 +717,7 @@ export class TriangleMesh extends Mesh {
         let vertices = [
             new Vertex(new Vector3(this.position.x - this.size.x / 2, this.position.y + this.size.y / 2, this.position.z - this.size.z / 2)),
             new Vertex(new Vector3(this.position.x + this.size.x / 2, this.position.y + this.size.y / 2, this.position.z - this.size.z / 2)),
-            new Vertex(new Vector3(this.position.x + this.size.x / 2, this.position.y - this.size.y / 2, this.position.z - this.size.z / 2)),
+            new Vertex(new Vector3(this.position.x + this.size.x / 2, this.position.y - this.size.y / 2 + 1, this.position.z - this.size.z / 2 - 1)),
         ];
 
         this.triangles = [
