@@ -4,7 +4,7 @@ let canvas = document.getElementById("renderViewport");
 
 let camera1 = new sgl.Camera(
     canvas,
-    .5, // near
+    0.25, // near
     20, // far
     90, // fov
     new sgl.Vector3(0, 0, 0), // position
@@ -224,6 +224,6 @@ let renderLoop = setInterval(function() {
 }, 0);
 
 // Assets
-for (let i = 0; i < 1; i++) {
-    scene.add(new sgl.TriangleMesh(new sgl.Vector3(0, 0, i + 2), new sgl.Vector3(1, 1, 1)));
+for (let i = 0; i < 10; i++) {
+    scene.add(new sgl.TriangleMesh(new sgl.Vector3(0, 0, i + 2), new sgl.Vector3(1, 1, 1), new sgl.Color(Math.random() * 255, Math.random() * 255, Math.random() * 255)));
 }

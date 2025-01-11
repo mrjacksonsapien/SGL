@@ -712,7 +712,7 @@ export class Cube extends Mesh {
 }
 
 export class TriangleMesh extends Mesh {
-    constructor(position, size) {
+    constructor(position, size, color) {
         super();
         this.position = position;
         this.size = size;
@@ -724,7 +724,7 @@ export class TriangleMesh extends Mesh {
         ];
 
         this.triangles = [
-            new Triangle(this.vertices[0], this.vertices[1], this.vertices[2], Color.RED),
+            new Triangle(this.vertices[0], this.vertices[1], this.vertices[2], color),
         ];
     }
 }
