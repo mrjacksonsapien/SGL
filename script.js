@@ -4,8 +4,8 @@ let canvas = document.getElementById("renderViewport");
 
 let camera1 = new sgl.Camera(
     canvas,
-    1, // near
-    10, // far
+    .5, // near
+    20, // far
     90, // fov
     new sgl.Vector3(0, 0, 0), // position
     new sgl.Vector3(0, 0, 0), // orientation

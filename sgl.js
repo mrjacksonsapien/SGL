@@ -36,7 +36,7 @@ export class Renderer {
      * The size of one triangle inside the triangle data array.
      * @type {number}
      */
-    static SIZEOF_TRIANGLE_DATA = 3;
+    static SIZEOF_TRIANGLE_DATA = 6;
     /**
      * The size of one vertex inside the vertex data array.
      * @type {number}
@@ -90,6 +90,9 @@ export class Renderer {
             trianglesData[triangleIndex] = vertices.indexOf(triangle.vertex1) * Renderer.SIZEOF_VERTEX_DATA;
             trianglesData[triangleIndex + 1] = vertices.indexOf(triangle.vertex2) * Renderer.SIZEOF_VERTEX_DATA;
             trianglesData[triangleIndex + 2] = vertices.indexOf(triangle.vertex3) * Renderer.SIZEOF_VERTEX_DATA;
+            trianglesData[triangleIndex + 3] = triangle.color.r;
+            trianglesData[triangleIndex + 4] = triangle.color.g;
+            trianglesData[triangleIndex + 5] = triangle.color.b;
         }
 
         let verticesData = new Float32Array(vertices.length * Renderer.SIZEOF_VERTEX_DATA);
@@ -219,6 +222,17 @@ export class Renderer {
                 }
             }
 
+            function createNewTriangle(vertex1Index, vertex2Index, vertex3Index, originalTriangleIndex) {
+                nextTriangles.push(
+                    vertex1Index,
+                    vertex2Index,
+                    vertex3Index,
+                    activeTriangles[originalTriangleIndex + 3],
+                    activeTriangles[originalTriangleIndex + 4],
+                    activeTriangles[originalTriangleIndex + 5]
+                )
+            }
+
             for (let j = 0; j < activeTriangles.length / Renderer.SIZEOF_TRIANGLE_DATA; j++) {
                 const triangleIndex = j * Renderer.SIZEOF_TRIANGLE_DATA;
                 const vertex1Index = activeTriangles[triangleIndex];
@@ -238,35 +252,39 @@ export class Renderer {
                 else outside.push(vertex3Index)
 
                 if (inside.length === 3) {
-                    nextTriangles.push(
+                    createNewTriangle(
                         addVertex(inside[0]),
                         addVertex(inside[1]),
-                        addVertex(inside[2])
-                    )
+                        addVertex(inside[2]),
+                        triangleIndex
+                    );
                 } else if (inside.length === 2) {
                     const intersection1 = createVertex(getIntersection(inside[0], outside[0], i));
                     const intersection2 = createVertex(getIntersection(inside[1], outside[0], i));
 
-                    nextTriangles.push(
+                    createNewTriangle(
                         addVertex(inside[0]),
                         addVertex(inside[1]),
-                        intersection1
-                    )
+                        intersection1,
+                        triangleIndex
+                    );
 
-                    nextTriangles.push(
+                    createNewTriangle(
                         addVertex(inside[1]),
                         intersection1,
-                        intersection2
-                    )
+                        intersection2,
+                        triangleIndex
+                    );
                 } else if (inside.length === 1) {
                     const intersection1 = createVertex(getIntersection(inside[0], outside[0], i));
                     const intersection2 = createVertex(getIntersection(inside[0], outside[1], i));
 
-                    nextTriangles.push(
+                    createNewTriangle(
                         addVertex(inside[0]),
                         intersection1,
-                        intersection2
-                    )
+                        intersection2,
+                        triangleIndex
+                    );
                 }
             }
 
@@ -325,8 +343,8 @@ export class Renderer {
             ctx.lineTo(verticesData[vertex2Index], verticesData[vertex2Index + 1]);
             ctx.lineTo(verticesData[vertex3Index], verticesData[vertex3Index + 1]);
             ctx.closePath();
-            ctx.strokeStyle = 'black';
-            ctx.stroke();
+            ctx.fillStyle = `rgb(${trianglesData[triangleIndex + 3]}, ${trianglesData[triangleIndex + 4]}, ${trianglesData[triangleIndex + 5]})`;
+            ctx.fill();
         }
     }
 
@@ -606,8 +624,9 @@ export class Camera {
  * Mesh object containing all the data for rendering.
  */
 export class Mesh {
-    constructor(triangles) {
-        this.triangles = triangles
+    constructor(vertices, triangles) {
+        this.vertices = vertices;
+        this.triangles = triangles;
         this.act = () => {};
     }
 }
@@ -616,10 +635,11 @@ export class Mesh {
  * Contains the references to 3 Vertex and the data of the triangle.
  */
 export class Triangle {
-    constructor(vertex1, vertex2, vertex3) {
+    constructor(vertex1, vertex2, vertex3, color) {
         this.vertex1 = vertex1;
         this.vertex2 = vertex2;
         this.vertex3 = vertex3;
+        this.color = color;
     }
 }
 
@@ -643,6 +663,18 @@ export class Vector3 {
     }
 }
 
+export class Color {
+    static RED = new Color(255, 0, 0);
+    static GREEN = new Color(0, 255, 0);
+    static BLUE = new Color(0, 0, 255);
+
+    constructor(r, g, b) {
+        this.r = r;
+        this.g = g;
+        this.b = b;
+    }
+}
+
 // Templates //
 
 export class Cube extends Mesh {
@@ -651,7 +683,7 @@ export class Cube extends Mesh {
         this.position = position;
         this.size = size;
 
-        let vertices = [
+        this.vertices = [
             new Vertex(new Vector3(this.position.x - this.size.x / 2, this.position.y + this.size.y / 2, this.position.z - this.size.z / 2)),
             new Vertex(new Vector3(this.position.x + this.size.x / 2, this.position.y + this.size.y / 2, this.position.z - this.size.z / 2)),
             new Vertex(new Vector3(this.position.x + this.size.x / 2, this.position.y - this.size.y / 2, this.position.z - this.size.z / 2)),
@@ -663,18 +695,18 @@ export class Cube extends Mesh {
         ];
 
         this.triangles = [
-            new Triangle(vertices[0], vertices[1], vertices[2]),
-            new Triangle(vertices[0], vertices[2], vertices[3]),
-            new Triangle(vertices[4], vertices[5], vertices[6]),
-            new Triangle(vertices[4], vertices[6], vertices[7]),
-            new Triangle(vertices[0], vertices[1], vertices[5]),
-            new Triangle(vertices[0], vertices[5], vertices[4]),
-            new Triangle(vertices[3], vertices[2], vertices[6]),
-            new Triangle(vertices[3], vertices[6], vertices[7]),
-            new Triangle(vertices[0], vertices[4], vertices[3]),
-            new Triangle(vertices[4], vertices[3], vertices[7]),
-            new Triangle(vertices[1], vertices[5], vertices[6]),
-            new Triangle(vertices[1], vertices[2], vertices[6])
+            new Triangle(this.vertices[0], this.vertices[1], this.vertices[2], Color.RED),
+            new Triangle(this.vertices[0], this.vertices[2], this.vertices[3], Color.RED),
+            new Triangle(this.vertices[4], this.vertices[5], this.vertices[6], Color.GREEN),
+            new Triangle(this.vertices[4], this.vertices[6], this.vertices[7], Color.GREEN),
+            new Triangle(this.vertices[0], this.vertices[1], this.vertices[5], Color.BLUE),
+            new Triangle(this.vertices[0], this.vertices[5], this.vertices[4], Color.BLUE),
+            new Triangle(this.vertices[3], this.vertices[2], this.vertices[6], Color.RED),
+            new Triangle(this.vertices[3], this.vertices[6], this.vertices[7], Color.RED),
+            new Triangle(this.vertices[0], this.vertices[4], this.vertices[3], Color.GREEN),
+            new Triangle(this.vertices[4], this.vertices[3], this.vertices[7], Color.GREEN),
+            new Triangle(this.vertices[1], this.vertices[5], this.vertices[6], Color.BLUE),
+            new Triangle(this.vertices[1], this.vertices[2], this.vertices[6], Color.BLUE)
         ];
     }
 }
@@ -685,14 +717,14 @@ export class TriangleMesh extends Mesh {
         this.position = position;
         this.size = size;
 
-        let vertices = [
+        this.vertices = [
             new Vertex(new Vector3(this.position.x - this.size.x / 2, this.position.y + this.size.y / 2, this.position.z - this.size.z / 2)),
             new Vertex(new Vector3(this.position.x + this.size.x / 2, this.position.y + this.size.y / 2, this.position.z - this.size.z / 2)),
             new Vertex(new Vector3(this.position.x + this.size.x / 2, this.position.y - this.size.y / 2 + 1, this.position.z - this.size.z / 2 - 1)),
         ];
 
         this.triangles = [
-            new Triangle(vertices[0], vertices[1], vertices[2]),
+            new Triangle(this.vertices[0], this.vertices[1], this.vertices[2], Color.RED),
         ];
     }
 }
