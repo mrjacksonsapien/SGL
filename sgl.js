@@ -118,6 +118,13 @@ export class Renderer {
         }
     }
 
+    /**
+     * Culls triangles that are facing away from camera (discards them). Front or back of the triangle is defined
+     * by the order the vertices are defined in the triangle.
+     * @param trianglesData
+     * @param verticesData
+     * @returns {Float32Array[]}
+     */
     cull(trianglesData, verticesData) {
         const verticesIndexMap = {};
         const keptTriangles = [];
