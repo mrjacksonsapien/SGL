@@ -174,7 +174,7 @@ export class Renderer {
             const viewDirectionY = vertex1XYZ[1];
             const viewDirectionZ = vertex1XYZ[2];
 
-            const dot = (normalX * viewDirectionX) + (normalY * viewDirectionY) + (normalZ / viewDirectionZ);
+            const dot = (normalX * viewDirectionX) + (normalY * viewDirectionY) + (normalZ * viewDirectionZ);
 
             if (dot < 0) {
                 keptTriangles.push(
@@ -433,7 +433,6 @@ export class Renderer {
         this.applyMatrixToVertices(Matrix.createViewMatrix(camera), sceneData[1]);
 
         // Now in view space
-        // TODO: Revise triangles backface culling algorithm.
         sceneData = this.cull(sceneData[0], sceneData[1]);
 
         this.applyMatrixToVertices(Matrix.createProjectionMatrix(camera), sceneData[1]);
