@@ -764,16 +764,18 @@ export class Cube extends Mesh {
         this.triangles = [
             new Triangle(this.vertices[0], this.vertices[1], this.vertices[2], Color.RED),
             new Triangle(this.vertices[0], this.vertices[2], this.vertices[3], Color.RED),
-            new Triangle(this.vertices[4], this.vertices[5], this.vertices[6], Color.GREEN),
-            new Triangle(this.vertices[4], this.vertices[6], this.vertices[7], Color.GREEN),
-            new Triangle(this.vertices[0], this.vertices[1], this.vertices[5], Color.BLUE),
-            new Triangle(this.vertices[0], this.vertices[5], this.vertices[4], Color.BLUE),
+            new Triangle(this.vertices[6], this.vertices[5], this.vertices[4], Color.GREEN),
+            new Triangle(this.vertices[7], this.vertices[6], this.vertices[4], Color.GREEN),
+            new Triangle(this.vertices[5], this.vertices[1], this.vertices[0], Color.BLUE),
+            new Triangle(this.vertices[4], this.vertices[5], this.vertices[0], Color.BLUE),
             new Triangle(this.vertices[3], this.vertices[2], this.vertices[6], Color.RED),
             new Triangle(this.vertices[3], this.vertices[6], this.vertices[7], Color.RED),
-            new Triangle(this.vertices[0], this.vertices[4], this.vertices[3], Color.GREEN),
+
+            new Triangle(this.vertices[3], this.vertices[4], this.vertices[0], Color.GREEN),
             new Triangle(this.vertices[4], this.vertices[3], this.vertices[7], Color.GREEN),
+
             new Triangle(this.vertices[1], this.vertices[5], this.vertices[6], Color.BLUE),
-            new Triangle(this.vertices[1], this.vertices[2], this.vertices[6], Color.BLUE)
+            new Triangle(this.vertices[6], this.vertices[2], this.vertices[1], Color.BLUE)
         ];
     }
 }
