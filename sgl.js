@@ -63,22 +63,18 @@ export class Renderer {
         const triangles = [];
         const meshes = this.scene.meshes;
 
-        // Get all the vertices from all the triangles in the scene
+        // Get all triangles and vertices from the instances
         for (let i = 0; i < meshes.length; i++) {
             const mesh = meshes[i];
 
             for (let j = 0; j < mesh.triangles.length; j++) {
-                const triangle = mesh.triangles[j];
-                triangles.push(triangle);
+                triangles.push(mesh.triangles[j]);
+            }
 
-                vertices.push(triangle.vertex1);
-                vertices.push(triangle.vertex2);
-                vertices.push(triangle.vertex3);
+            for (let j = 0; j < mesh.vertices.length; j++) {
+                vertices.push(mesh.vertices[j]);
             }
         }
-
-        // Remove duplicates (many triangles sharing the same vertex)
-        vertices = [...new Set(vertices)];
 
         const trianglesData = new Float32Array(triangles.length * Renderer.SIZEOF_TRIANGLE_DATA);
 
@@ -120,6 +116,79 @@ export class Renderer {
         for (let i = 0; i < verticesData.length / Renderer.SIZEOF_VERTEX_DATA; i++) {
             Matrix.multiplyMatrixWithVertex(matrix,  i * Renderer.SIZEOF_VERTEX_DATA, verticesData);
         }
+    }
+
+    cull(trianglesData, verticesData) {
+        const verticesIndexMap = {};
+        const keptTriangles = [];
+        const keptVertices = [];
+
+        function addVertex(verticesDataIndex) {
+            if (verticesIndexMap[verticesDataIndex] === undefined) {
+                const nextIndex = keptVertices.length;
+
+                keptVertices.push(
+                    verticesData[verticesDataIndex],
+                    verticesData[verticesDataIndex + 1],
+                    verticesData[verticesDataIndex + 2],
+                    verticesData[verticesDataIndex + 3]
+                )
+
+                verticesIndexMap[verticesDataIndex] = nextIndex;
+            }
+            return verticesIndexMap[verticesDataIndex];
+        }
+
+        function getXYZ(vertexIndex) {
+            return [
+                verticesData[vertexIndex],
+                verticesData[vertexIndex + 1],
+                verticesData[vertexIndex + 2]
+            ];
+        }
+
+        for (let i = 0; i < trianglesData.length / Renderer.SIZEOF_TRIANGLE_DATA; i++) {
+            const triangleIndex = i * Renderer.SIZEOF_TRIANGLE_DATA;
+
+            const vertex1Index = trianglesData[triangleIndex];
+            const vertex2Index = trianglesData[triangleIndex + 1];
+            const vertex3Index = trianglesData[triangleIndex + 2];
+
+            const vertex1XYZ = getXYZ(vertex1Index);
+            const vertex2XYZ = getXYZ(vertex2Index);
+            const vertex3XYZ = getXYZ(vertex3Index);
+
+            const edgeAX = vertex2XYZ[0] - vertex1XYZ[0];
+            const edgeAY = vertex2XYZ[1] - vertex1XYZ[1];
+            const edgeAZ = vertex2XYZ[2] - vertex1XYZ[2];
+
+            const edgeBX = vertex3XYZ[0] - vertex1XYZ[0];
+            const edgeBY = vertex3XYZ[1] - vertex1XYZ[1];
+            const edgeBZ = vertex3XYZ[2] - vertex1XYZ[2];
+
+            const normalX = (edgeAY * edgeBZ) - (edgeAZ * edgeBY);
+            const normalY = (edgeAZ * edgeBX) - (edgeAX * edgeBZ);
+            const normalZ = (edgeAX * edgeBY) - (edgeAY * edgeBX);
+
+            const viewDirectionX = vertex1XYZ[0];
+            const viewDirectionY = vertex1XYZ[1];
+            const viewDirectionZ = vertex1XYZ[2];
+
+            const dot = (normalX * viewDirectionX) + (normalY * viewDirectionY) + (normalZ / viewDirectionZ);
+
+            if (dot < 0) {
+                keptTriangles.push(
+                    addVertex(vertex1Index),
+                    addVertex(vertex2Index),
+                    addVertex(vertex3Index),
+                    trianglesData[triangleIndex + 3],
+                    trianglesData[triangleIndex + 4],
+                    trianglesData[triangleIndex + 5]
+                )
+            }
+        }
+
+        return [new Float32Array(keptTriangles), new Float32Array(keptVertices)];
     }
 
     /**
@@ -325,12 +394,13 @@ export class Renderer {
     }
 
     /**
-     * Display the triangle's wireframe.
+     * Display the triangles.
      * @param trianglesData Triangles data after clipping.
      * @param verticesData Vertices data after 2D mapping.
      */
-    displayTrianglesWireframe(trianglesData, verticesData) {
-        const ctx = this.canvas.getContext('2d');
+    displayTriangles(trianglesData, verticesData) {
+        const ctx = this.canvas.getContext('2d', {willReadFrequently: true});
+
         for (let i = 0; i < trianglesData.length / Renderer.SIZEOF_TRIANGLE_DATA; i++) {
             const triangleIndex = i * Renderer.SIZEOF_TRIANGLE_DATA;
 
@@ -343,7 +413,7 @@ export class Renderer {
             ctx.lineTo(verticesData[vertex2Index], verticesData[vertex2Index + 1]);
             ctx.lineTo(verticesData[vertex3Index], verticesData[vertex3Index + 1]);
             ctx.closePath();
-            ctx.fillStyle = `rgb(${trianglesData[triangleIndex + 3]}, ${trianglesData[triangleIndex + 4]}, ${trianglesData[triangleIndex + 5]})`;
+            ctx.fillStyle = 'rgb(255, 0, 0)';
             ctx.fill();
         }
     }
@@ -357,39 +427,30 @@ export class Renderer {
         const camera = this.scene.currentCamera;
 
         let sceneData = this.convertSceneToFlatArrays();
-        let trianglesData = sceneData[0];
-        let verticesData = sceneData[1];
 
-        /* Now in world space (coordinates relative to the world origin). The scene has been converted into
-        2 flat (one dimension) arrays: One for all the vertices in the scene, and one for the triangles. The triangles
-        hold the indices (in verticesData) of the vertices that shapes them. You can see this as some kind of "reference".
-        Making flat arrays will help make calculations faster than accessing objects data. */
+        // Now in world space
 
-        this.applyMatrixToVertices(Matrix.createViewMatrix(camera), verticesData);
+        this.applyMatrixToVertices(Matrix.createViewMatrix(camera), sceneData[1]);
 
-        // Now in view space: Perform calculations for lighting, normal vectors, etc.
+        // Now in view space
+        // TODO: Revise triangles backface culling algorithm.
+        sceneData = this.cull(sceneData[0], sceneData[1]);
 
-        this.applyMatrixToVertices(Matrix.createProjectionMatrix(camera), verticesData);
+        this.applyMatrixToVertices(Matrix.createProjectionMatrix(camera), sceneData[1]);
 
-        /* Now in clip space: Perform clipping and triangles subdivision. The variables holding the data arrays are updated
-        because some triangles and vertices might have been discarded with some new ones added, which requires changing the size
-        of the arrays. */
+        // Now in clip space
 
-        sceneData = this.clip(trianglesData, verticesData);
-        trianglesData = sceneData[0];
-        verticesData = sceneData[1];
+        sceneData = this.clip(sceneData[0], sceneData[1]);
 
-        this.applyPerspectiveDivisionToClipVertices(verticesData);
+        this.applyPerspectiveDivisionToClipVertices(sceneData[1]);
 
-        /* Now in NDC space. The perspective division is the part where everything has been turned based on the perspective
-        effect (things further away are smaller/vertices are closer to the center of the viewport) */
+        // Now in NDC space
 
-        this.mapNdcVerticesToScreenCoordinates(verticesData);
+        this.mapNdcVerticesToScreenCoordinates(sceneData[1]);
 
-        /* Now in 2D screen space. The vertices are finally mapped to the 2D screen coordinates. In this space, we can finally
-        see the final position of the vertices. */
+        // Now in 2D screen space
 
-        this.displayTrianglesWireframe(trianglesData, verticesData);
+        this.displayTriangles(sceneData[0], sceneData[1]);
     }
 }
 
@@ -712,7 +773,7 @@ export class Cube extends Mesh {
 }
 
 export class TriangleMesh extends Mesh {
-    constructor(position, size, color) {
+    constructor(position, size) {
         super();
         this.position = position;
         this.size = size;
@@ -720,11 +781,11 @@ export class TriangleMesh extends Mesh {
         this.vertices = [
             new Vertex(new Vector3(this.position.x - this.size.x / 2, this.position.y + this.size.y / 2, this.position.z - this.size.z / 2)),
             new Vertex(new Vector3(this.position.x + this.size.x / 2, this.position.y + this.size.y / 2, this.position.z - this.size.z / 2)),
-            new Vertex(new Vector3(this.position.x + this.size.x / 2, this.position.y - this.size.y / 2 + 1, this.position.z - this.size.z / 2 - 1)),
+            new Vertex(new Vector3(this.position.x + this.size.x / 2, this.position.y - this.size.y / 2 + 1, this.position.z - this.size.z / 2 - 1))
         ];
 
         this.triangles = [
-            new Triangle(this.vertices[0], this.vertices[1], this.vertices[2], color),
+            new Triangle(this.vertices[0], this.vertices[1], this.vertices[2], Color.RED)
         ];
     }
 }
