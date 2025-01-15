@@ -334,11 +334,13 @@ export class Renderer {
                 if (planesRelation(vertex3Index, i)) inside.push(vertex3Index)
                 else outside.push(vertex3Index)
 
+                // TODO: Fix winding order of triangles during clipping.
+
                 if (inside.length === 3) {
                     createNewTriangle(
-                        addVertex(inside[2]),
                         addVertex(inside[0]),
                         addVertex(inside[1]),
+                        addVertex(inside[2]),
                         triangleIndex
                     );
                 } else if (inside.length === 2) {
@@ -346,16 +348,16 @@ export class Renderer {
                     const intersection2 = createVertex(getIntersection(inside[1], outside[0], i));
 
                     createNewTriangle(
-                        intersection1,
-                        addVertex(inside[1]),
                         addVertex(inside[0]),
+                        addVertex(inside[1]),
+                        intersection1,
                         triangleIndex
                     );
 
                     createNewTriangle(
+                        addVertex(inside[1]),
                         intersection2,
                         intersection1,
-                        addVertex(inside[1]),
                         triangleIndex
                     );
                 } else if (inside.length === 1) {
@@ -364,8 +366,8 @@ export class Renderer {
 
                     createNewTriangle(
                         addVertex(inside[0]),
-                        intersection1,
                         intersection2,
+                        intersection1,
                         triangleIndex
                     );
                 }
