@@ -202,11 +202,6 @@ function cameraOrientationValueReassignment() {
     }
 }
 
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-}
-
 let lastFrameTime = performance.now();
 
 let renderLoop = setInterval(function() {
@@ -214,7 +209,6 @@ let renderLoop = setInterval(function() {
 
     // Render
     scene.act();
-    resizeCanvas();
 
     const lastFrameTime = performance.now();
     renderer.render();
@@ -225,6 +219,6 @@ let renderLoop = setInterval(function() {
 }, 0);
 
 // Assets
-for (let i = 0; i < 1; i++) {
-    scene.add(new sgl.Cube(new sgl.Vector3(0, 0, i + 2), new sgl.Vector3(1, 1, 1)));
+for (let i = 0; i < 10; i++) {
+    scene.add(new sgl.Cube(new sgl.Vector3(i, 0, i + 2), new sgl.Vector3(1, 1, 1)));
 }

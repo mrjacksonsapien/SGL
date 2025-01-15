@@ -409,14 +409,8 @@ export class Renderer {
         }
     }
 
-    /**
-     * Display the triangles.
-     * @param trianglesData Triangles data after clipping.
-     * @param verticesData Vertices data after 2D mapping.
-     */
-    renderTriangles(trianglesData, verticesData) {
+    renderTriangles(trianglesData, verticesData, ctx) {
         function pointIsInTriangle(px, py, ax, ay, bx, by, cx, cy, isCCW) {
-            // Compute edge functions for the three edges of the triangle
             let edge1 = (py - ay) * (bx - ax) - (px - ax) * (by - ay); // Edge AB
             let edge2 = (py - by) * (cx - bx) - (px - bx) * (cy - by); // Edge BC
             let edge3 = (py - cy) * (ax - cx) - (px - cx) * (ay - cy); // Edge CA
@@ -427,7 +421,6 @@ export class Renderer {
                 edge3 *= -1;
             }
 
-            // Check if the point is inside (or on the edge) of the triangle
             return (edge1 >= 0) && (edge2 >= 0) && (edge3 >= 0);
         }
 
@@ -437,7 +430,7 @@ export class Renderer {
             return signedArea > 0; // CCW if positive
         }
 
-        const ctx = this.canvas.getContext('2d', {willReadFrequently: true});
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         const imageData = ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
         const depthBuffer = new Float32Array(this.canvas.width * this.canvas.height);
@@ -532,8 +525,9 @@ export class Renderer {
         this.mapNdcVerticesToScreenCoordinates(sceneData[1]);
 
         // Now in 2D screen space
+        const ctx = this.canvas.getContext('2d', {willReadFrequently: true});
 
-        this.renderTriangles(sceneData[0], sceneData[1]);
+        this.renderTriangles(sceneData[0], sceneData[1], ctx);
     }
 }
 
@@ -804,6 +798,13 @@ export class Vector3 {
         this.x = x;
         this.y = y;
         this.z = z;
+    }
+}
+
+export class Vector2 {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
     }
 }
 
