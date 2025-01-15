@@ -23,6 +23,12 @@ export class SGLMath {
     static degToRad(degrees) {
         return degrees * (Math.PI / 180);
     }
+
+    /**
+     * Cotangent of opening of frustum.
+     * @param degrees The field of view of the camera frustum
+     * @returns {number} Cotangent
+     */
     static cot(degrees) {
         return 1 / Math.tan(SGLMath.degToRad(degrees));
     }
@@ -165,6 +171,7 @@ export class Renderer {
             const vertex2XYZ = getXYZ(vertex2Index);
             const vertex3XYZ = getXYZ(vertex3Index);
 
+            // Counter clock-wise convention (CCW)
             const edgeAX = vertex2XYZ[0] - vertex1XYZ[0];
             const edgeAY = vertex2XYZ[1] - vertex1XYZ[1];
             const edgeAZ = vertex2XYZ[2] - vertex1XYZ[2];
@@ -329,9 +336,9 @@ export class Renderer {
 
                 if (inside.length === 3) {
                     createNewTriangle(
+                        addVertex(inside[2]),
                         addVertex(inside[0]),
                         addVertex(inside[1]),
-                        addVertex(inside[2]),
                         triangleIndex
                     );
                 } else if (inside.length === 2) {
@@ -339,16 +346,16 @@ export class Renderer {
                     const intersection2 = createVertex(getIntersection(inside[1], outside[0], i));
 
                     createNewTriangle(
-                        addVertex(inside[0]),
-                        addVertex(inside[1]),
                         intersection1,
+                        addVertex(inside[1]),
+                        addVertex(inside[0]),
                         triangleIndex
                     );
 
                     createNewTriangle(
-                        addVertex(inside[1]),
-                        intersection1,
                         intersection2,
+                        intersection1,
+                        addVertex(inside[1]),
                         triangleIndex
                     );
                 } else if (inside.length === 1) {
@@ -405,8 +412,22 @@ export class Renderer {
      * @param trianglesData Triangles data after clipping.
      * @param verticesData Vertices data after 2D mapping.
      */
-    displayTriangles(trianglesData, verticesData) {
+    renderTriangles(trianglesData, verticesData) {
+        function pointIsInTriangle(px, py, ax, ay, bx, by, cx, cy) {
+            // Compute edge functions for the three edges of the triangle
+            const edge1 = (py - ay) * (bx - ax) - (px - ax) * (by - ay); // Edge AB
+            const edge2 = (py - by) * (cx - bx) - (px - bx) * (cy - by); // Edge BC
+            const edge3 = (py - cy) * (ax - cx) - (px - cx) * (ay - cy); // Edge CA
+
+            // Check if the point is inside (or on the edge) of the triangle
+            return (edge1 >= 0) && (edge2 >= 0) && (edge3 >= 0);
+        }
+
         const ctx = this.canvas.getContext('2d', {willReadFrequently: true});
+
+        const imageData = ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+        const depthBuffer = new Float32Array(this.canvas.width * this.canvas.height);
+        depthBuffer.fill(Infinity);
 
         for (let i = 0; i < trianglesData.length / Renderer.SIZEOF_TRIANGLE_DATA; i++) {
             const triangleIndex = i * Renderer.SIZEOF_TRIANGLE_DATA;
@@ -415,14 +436,54 @@ export class Renderer {
             const vertex2Index = trianglesData[triangleIndex + 1];
             const vertex3Index = trianglesData[triangleIndex + 2];
 
-            ctx.beginPath();
-            ctx.moveTo(verticesData[vertex1Index], verticesData[vertex1Index + 1]);
-            ctx.lineTo(verticesData[vertex2Index], verticesData[vertex2Index + 1]);
-            ctx.lineTo(verticesData[vertex3Index], verticesData[vertex3Index + 1]);
-            ctx.closePath();
-            ctx.fillStyle = `rgb(${trianglesData[triangleIndex + 3]}, ${trianglesData[triangleIndex + 4]}, ${trianglesData[triangleIndex + 5]})`;
-            ctx.fill();
+            const vertex1X = verticesData[vertex1Index];
+            const vertex1Y = verticesData[vertex1Index + 1];
+
+            const vertex2X = verticesData[vertex2Index];
+            const vertex2Y = verticesData[vertex2Index + 1];
+
+            const vertex3X = verticesData[vertex3Index];
+            const vertex3Y = verticesData[vertex3Index + 1];
+
+            const minX = Math.floor(Math.min(vertex1X, vertex2X, vertex3X));
+            const maxX = Math.ceil(Math.max(vertex1X, vertex2X, vertex3X));
+            const minY = Math.floor(Math.min(vertex1Y, vertex2Y, vertex3Y));
+            const maxY = Math.ceil(Math.max(vertex1Y, vertex2Y, vertex3Y));
+
+            for (let x = minX; x < maxX; x++) {
+                for (let y = minY; y < maxY; y++) {
+                    if (pointIsInTriangle(x, y, vertex1X, vertex1Y, vertex2X, vertex2Y, vertex3X, vertex3Y)) {
+                        const vertex1Z = verticesData[vertex1Index + 2];
+                        const vertex2Z = verticesData[vertex2Index + 2];
+                        const vertex3Z = verticesData[vertex3Index + 2];
+
+                        // Compute barycentric coordinates (α1, α2, α3)
+                        const denominator = (vertex2Y - vertex3Y) * (vertex1X - vertex3X) + (vertex3X - vertex2X) * (vertex1Y - vertex3Y);
+
+                        const a1 = ((vertex2Y - vertex3Y) * (x - vertex3X) + (vertex3X - vertex2X) * (y - vertex3Y)) / denominator;
+                        const a2 = ((vertex3Y - vertex1Y) * (x - vertex3X) + (vertex1X - vertex3X) * (y - vertex3Y)) / denominator;
+                        const a3 = 1 - a1 - a2;
+
+                        // Interpolate z value using barycentric coordinates
+                        const z = a1 * vertex1Z + a2 * vertex2Z + a3 * vertex3Z;
+
+                        const pixelIndex = (y * this.canvas.width + x);
+                        if (z < depthBuffer[pixelIndex]) {
+                            depthBuffer[pixelIndex] = z;
+                            const data = imageData.data;
+                            const index = (y * this.canvas.width + x) * 4;
+
+                            data[index] = trianglesData[triangleIndex + 3];
+                            data[index + 1] = trianglesData[triangleIndex + 4];
+                            data[index + 2] = trianglesData[triangleIndex + 5];
+                            data[index + 3] = 255;
+                        }
+                    }
+                }
+            }
         }
+
+        ctx.putImageData(imageData, 0, 0);
     }
 
     /**
@@ -456,7 +517,7 @@ export class Renderer {
 
         // Now in 2D screen space
 
-        this.displayTriangles(sceneData[0], sceneData[1]);
+        this.renderTriangles(sceneData[0], sceneData[1]);
     }
 }
 
