@@ -306,6 +306,7 @@ export class Renderer {
             }
 
             function createNewTriangle(vertex1Index, vertex2Index, vertex3Index, originalTriangleIndex) {
+                const newTriangleIndex = nextTriangles.length;
                 nextTriangles.push(
                     vertex1Index,
                     vertex2Index,
@@ -314,6 +315,7 @@ export class Renderer {
                     activeTriangles[originalTriangleIndex + 4],
                     activeTriangles[originalTriangleIndex + 5]
                 )
+                return newTriangleIndex;
             }
 
             for (let j = 0; j < activeTriangles.length / Renderer.SIZEOF_TRIANGLE_DATA; j++) {
@@ -333,8 +335,6 @@ export class Renderer {
 
                 if (planesRelation(vertex3Index, i)) inside.push(vertex3Index)
                 else outside.push(vertex3Index)
-
-                // TODO: Fix winding order of triangles during clipping.
 
                 if (inside.length === 3) {
                     createNewTriangle(
@@ -415,14 +415,26 @@ export class Renderer {
      * @param verticesData Vertices data after 2D mapping.
      */
     renderTriangles(trianglesData, verticesData) {
-        function pointIsInTriangle(px, py, ax, ay, bx, by, cx, cy) {
+        function pointIsInTriangle(px, py, ax, ay, bx, by, cx, cy, isCCW) {
             // Compute edge functions for the three edges of the triangle
-            const edge1 = (py - ay) * (bx - ax) - (px - ax) * (by - ay); // Edge AB
-            const edge2 = (py - by) * (cx - bx) - (px - bx) * (cy - by); // Edge BC
-            const edge3 = (py - cy) * (ax - cx) - (px - cx) * (ay - cy); // Edge CA
+            let edge1 = (py - ay) * (bx - ax) - (px - ax) * (by - ay); // Edge AB
+            let edge2 = (py - by) * (cx - bx) - (px - bx) * (cy - by); // Edge BC
+            let edge3 = (py - cy) * (ax - cx) - (px - cx) * (ay - cy); // Edge CA
+
+            if (!isCCW) {
+                edge1 *= -1;
+                edge2 *= -1;
+                edge3 *= -1;
+            }
 
             // Check if the point is inside (or on the edge) of the triangle
             return (edge1 >= 0) && (edge2 >= 0) && (edge3 >= 0);
+        }
+
+        function isTriangleCCW(ax, ay, bx, by, cx, cy) {
+            // Calculate the signed area
+            const signedArea = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+            return signedArea > 0; // CCW if positive
         }
 
         const ctx = this.canvas.getContext('2d', {willReadFrequently: true});
@@ -447,6 +459,8 @@ export class Renderer {
             const vertex3X = verticesData[vertex3Index];
             const vertex3Y = verticesData[vertex3Index + 1];
 
+            const isCCW = isTriangleCCW(vertex1X, vertex1Y, vertex2X, vertex2Y, vertex3X, vertex3Y);
+
             const minX = Math.floor(Math.min(vertex1X, vertex2X, vertex3X));
             const maxX = Math.ceil(Math.max(vertex1X, vertex2X, vertex3X));
             const minY = Math.floor(Math.min(vertex1Y, vertex2Y, vertex3Y));
@@ -454,7 +468,7 @@ export class Renderer {
 
             for (let x = minX; x < maxX; x++) {
                 for (let y = minY; y < maxY; y++) {
-                    if (pointIsInTriangle(x, y, vertex1X, vertex1Y, vertex2X, vertex2Y, vertex3X, vertex3Y)) {
+                    if (pointIsInTriangle(x, y, vertex1X, vertex1Y, vertex2X, vertex2Y, vertex3X, vertex3Y, isCCW)) {
                         const vertex1Z = verticesData[vertex1Index + 2];
                         const vertex2Z = verticesData[vertex2Index + 2];
                         const vertex3Z = verticesData[vertex3Index + 2];
