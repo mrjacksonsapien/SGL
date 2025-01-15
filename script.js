@@ -216,11 +216,12 @@ let renderLoop = setInterval(function() {
     scene.act();
     resizeCanvas();
 
+    const lastFrameTime = performance.now();
+    renderer.render();
     const currentFrameTime = performance.now();
     const deltaTime = (currentFrameTime - lastFrameTime) / 1000;
-    //console.log("Render time: " + deltaTime + "ms");
 
-    renderer.render();
+    //console.log(deltaTime + "ms");
 }, 0);
 
 // Assets
