@@ -786,7 +786,7 @@ export class Camera {
 }
 
 /**
- * Mesh object.
+ * Mesh object. Vertices inside this mesh should be defined with local coordinates.
  */
 export class Mesh {
     constructor(vertices, triangles, position) {
