@@ -1,4 +1,5 @@
 import * as sgl from './sgl.js';
+import {Vector3} from "./sgl.js";
 
 let canvas = document.getElementById("renderViewport");
 
@@ -218,7 +219,6 @@ let renderLoop = setInterval(function() {
     //console.log(deltaTime + "ms");
 }, 0);
 
-// Assets
-for (let i = 0; i < 10; i++) {
-    scene.add(new sgl.Cube(new sgl.Vector3(i, 0, i + 2), new sgl.Vector3(1, 1, 1)));
-}
+const cube = new sgl.Cube(new sgl.Vector3(0, 0, 3));
+
+scene.add(cube);
