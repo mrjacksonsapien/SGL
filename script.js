@@ -221,4 +221,9 @@ let renderLoop = setInterval(function() {
 
 const cube = new sgl.Cube(new sgl.Vector3(0, 0, 3));
 
+setInterval(() => {
+    cube.rotation.x += 1;
+    cube.rotation.y += 1;
+}, 20);
+
 scene.add(cube);
