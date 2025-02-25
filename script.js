@@ -203,7 +203,7 @@ function cameraOrientationValueReassignment() {
     }
 }
 
-let lastFrameTime = performance.now();
+let deltaTime;
 
 let renderLoop = setInterval(function() {
     handleInputs();
@@ -214,16 +214,13 @@ let renderLoop = setInterval(function() {
     const lastFrameTime = performance.now();
     renderer.render();
     const currentFrameTime = performance.now();
-    const deltaTime = (currentFrameTime - lastFrameTime) / 1000;
-
-    //console.log(deltaTime + "ms");
-}, 0);
+    deltaTime = (currentFrameTime - lastFrameTime) / 1000;
+});
 
 const cube = new sgl.Cube(new sgl.Vector3(0, 0, 3));
 
 setInterval(() => {
-    cube.rotation.x += 1;
-    cube.rotation.y += 1;
-}, 20);
+    cube.rotation.x += deltaTime * 100;
+});
 
 scene.add(cube);
