@@ -6,7 +6,7 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 
 1. The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
-2. The name “SGL” (Sequential Graphic Library) is a trademark of [Your Name or Organization]. Permission is not granted to use the name “SGL” or any confusingly similar name for derivative or forked versions of this Software without prior written consent.
+2. The name “SGL” (Sequential Graphic Library) is a trademark of MrJackson. Permission is not granted to use the name “SGL” or any confusingly similar name for derivative or forked versions of this Software without prior written consent.
 
 3. You must not misrepresent the origin of this Software. Modified versions must be clearly marked as modified, and you must not claim that you wrote the original Software.
 
